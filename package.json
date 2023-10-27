@@ -1,0 +1,29 @@
+{
+  "name": "penako-keystore-generator",
+  "version": "1.0.3",
+  "description": "Penako Keystore Generator is a command line tool to generate keystore for android applications",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "bin": {
+    "kg": "bin/kg"
+  },
+  "keywords": [
+    "penako",
+    "keystore",
+    "generator",
+    "apk",
+    "sign"
+  ],
+  "author": "Mohamed Aitmiloud <aitmiloud.com>",
+  "license": "GNU",
+  "repository": {
+    "type": "url",
+    "url": "https://github.com/Penako-Builder/penako-keystore-generator"
+  },
+  "dependencies": {
+    "command-line-args": "^5.1.1",
+    "command-line-usage": "^6.1.0"
+  }
+}

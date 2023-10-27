@@ -1,0 +1,153 @@
+#!/usr/bin/env node
+
+const { spawn } = require("child_process");
+const kgHelper = require('../index');
+const commandLineArgs = require('command-line-args');
+
+if (process.argv.length < 3) {
+  kgHelper.printUsage();
+} else {
+  const mainDefinitions = [
+    { name: 'name', defaultOption: true },
+    { name: 'help', alias: 'h', type: String },
+  ];
+  const mainCommand = commandLineArgs(mainDefinitions, { stopAtFirstUnknown: true });
+  let argv = mainCommand._unknown || [];
+
+  if (mainCommand.help) {
+    kgHelper.printUsage();
+  }
+
+  if (mainCommand.name === 'key') {
+    const subCommandDefinitions = [
+      { name: 'name', defaultOption: true }
+    ];
+    const subCommand = commandLineArgs(subCommandDefinitions, { argv, stopAtFirstUnknown: true });
+    argv = subCommand._unknown || [];
+
+    if (subCommand.name === 'generate') {
+      // Generating New Keystore
+      process.stdout.write("Generating New Keystore" + "\n");
+
+      var alias = 'Unknown',
+          password = 'Unknown',
+          fullName = 'Unknown',
+          organizationUnit = 'Unknown',
+          organization = 'Unknown',
+          city = 'Unknown',
+          state = 'Unknown',
+          countryCode = 'Unknown';
+
+      const main = async () => {
+        alias = await kgHelper.promptQuiz(`Enter Alias name: `);
+        password = await kgHelper.promptQuiz(`Enter keystore password: `, true);
+        fullName = await kgHelper.promptQuiz(`What is your first and last name?\n [Unknow]: `);
+        organizationUnit = await kgHelper.promptQuiz(`What is the name of your organizational unit?\n [Unknow]: `);
+        organization = await kgHelper.promptQuiz(`What is the name of your organization?\n [Unknow]: `);
+        city = await kgHelper.promptQuiz(`What is the name of your City or Locality?\n [Unknow]: `);
+        state = await kgHelper.promptQuiz(`What is the name of your State or Province?\n [Unknow]: `);
+        countryCode = await kgHelper.promptQuiz(`What is the two-letter country code for this unit?\n [Unknow]: `);
+        
+        kgHelper.closeReadline();
+
+        const keytoolCmd = spawn("keytool", ["-genkey", "-v", "-keystore", "my-release-key.keystore", "-keyalg", "RSA", "-keysize", "2048", "-validity", "10000", "-alias", alias]);
+
+        keytoolCmd.stdout.on("data", data => {
+          process.stdout.write((`${data}`));
+        });
+
+        keytoolCmd.stderr.on("data", data => {
+          keytoolCmd.stdin.write(password + "\r\n");
+          keytoolCmd.stdin.write(password + "\r\n");
+          keytoolCmd.stdin.write(fullName + "\r\n");
+          keytoolCmd.stdin.write(organizationUnit + "\r\n");
+          keytoolCmd.stdin.write(organization + "\r\n");
+          keytoolCmd.stdin.write(city + "\r\n");
+          keytoolCmd.stdin.write(state + "\r\n");
+          keytoolCmd.stdin.write(countryCode + "\r\n");
+          keytoolCmd.stdin.write("yes\r\n");
+        });
+
+        keytoolCmd.on('error', (error) => {
+          process.stdout.write(`error: ${error.message}\n`);
+        });
+
+        keytoolCmd.on("close", code => {
+          if (code === 0) {
+            process.stdout.write("Keystore generated successfully!\n");
+          } else {
+            process.stdout.write(`child process exited with code ${code}\n`);
+          }
+
+          process.exit(1);
+        });
+      }
+
+      main();
+    } else if (subCommand.name === 'sign') {
+      const runDefinitions = [
+        { name: 'src', alias: 's', type: String },
+        { name: 'keystore', alias: 'k', type: String },
+      ];
+
+      const runOptions = commandLineArgs(runDefinitions, { argv, stopAtFirstUnknown: true });
+
+      if (!runOptions.src || !runOptions.keystore) {
+        process.stdout.write("Invalid Command" + "\n");
+        kgHelper.printUsage();
+      }
+
+      const source = runOptions.src;
+      const keystore = runOptions.keystore;
+
+      if (!kgHelper.checkSourceExists(source)) {
+        process.stdout.write("Invalid Source apk" + "\n");
+      }
+
+      if (!kgHelper.checkKeystoreExists(keystore)) {
+        process.stdout.write("Invalid Keystore File" + "\n");
+      }
+
+      const runCmd = async () => {
+        alias = await kgHelper.promptQuiz(`Enter Alias: `, true);
+        password = await kgHelper.promptQuiz(`Enter Password: `, true);
+
+        kgHelper.closeReadline();
+
+        const signingCmd = spawn("jarsigner", ["-verbose", "-sigalg", "SHA1withRSA", "-digestalg", "SHA1", "-keystore", keystore, source, alias]);
+
+        signingCmd.stdout.on("data", data => {
+          process.stdout.write((`${data}`));
+        });
+
+        signingCmd.stderr.on("data", data => {
+          signingCmd.stdin.write(password + "\r\n");
+        });
+
+        signingCmd.on('error', (error) => {
+          process.stdout.write(`error: ${error.message}\n`);
+        });
+
+        signingCmd.on("close", code => {
+          if (code === 0) {
+            process.stdout.write("Apk signed successfully!\n");
+          } else {
+            process.stdout.write(`child process exited with code ${code}\n`);
+          }
+
+          process.exit(1);
+        });
+      }
+
+      runCmd();
+    } else {
+      process.stdout.write("Invalid command!\n");
+
+      kgHelper.printUsage();
+    }
+  } else {
+    process.stdout.write("Invalid command!\n");
+
+    kgHelper.printUsage();
+  }
+}
